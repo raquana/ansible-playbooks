@@ -1,0 +1,66 @@
+---
+- hosts: 192.168.1.20
+  gather_facts: no
+  remote_user: pi
+  tasks:
+    - fail: msg="You must pass 'wifiPwd' using --extra-vars and quoting 'wifiPwd=<something>'"
+      when: wifiPwd is not defined
+
+    - name: Sort Prompt
+      replace: 'dest=~/.bashrc regexp=@\\\\h\\\\ replace=@\\\\h2\\\\'
+    - name: Sort Prompt(2)
+      replace: 'dest=~/.bashrc regexp=@\\\\h: replace=@\\\\h2:'
+
+    - name: Setup Wifi(1)
+      lineinfile: dest=/etc/wpa_supplicant/wpa_supplicant.conf insertafter=EOF line='network={' backup=yes
+      sudo: yes
+    - name: Setup Wifi(2)
+      lineinfile: dest=/etc/wpa_supplicant/wpa_supplicant.conf insertafter=EOF line='    ssid=\"ATandNT\"'
+      sudo: yes
+    - name: Setup Wifi(3)
+      lineinfile: dest=/etc/wpa_supplicant/wpa_supplicant.conf insertafter=EOF line='    proto=RSN'
+      sudo: yes
+    - name: Setup Wifi(4)
+      lineinfile: dest=/etc/wpa_supplicant/wpa_supplicant.conf insertafter=EOF line='    key_mgmt=WPA-PSK'
+      sudo: yes
+    - name: Setup Wifi(5)
+      lineinfile: dest=/etc/wpa_supplicant/wpa_supplicant.conf insertafter=EOF line='    pairwise=CCMP TKIP'
+      sudo: yes
+    - name: Setup Wifi(6)
+      lineinfile: dest=/etc/wpa_supplicant/wpa_supplicant.conf insertafter=EOF line='    group=CCMP TKIP'
+      sudo: yes
+    - name: Setup Wifi(7)
+      lineinfile: dest=/etc/wpa_supplicant/wpa_supplicant.conf insertafter=EOF line='    psk=\"{{ wifiPwd }}\"'
+      sudo: yes
+    - name: Setup Wifi(8)
+      lineinfile: dest=/etc/wpa_supplicant/wpa_supplicant.conf insertafter=EOF line='}'
+      sudo: yes
+    - name: Setup Wifi(9)
+      lineinfile: dest=/etc/network/interfaces insertbefore='allow-hotplug wlan' line='auto wlan0'
+      sudo: yes
+
+    - name: Disable wifi power-saving mode
+      lineinfile: dest=/etc/modprobe.d/8192cu.conf insertafter=EOF line='options 8192cu rtw_power_mgnt=0' create=yes
+      sudo: yes
+
+    - name: Install VNC
+      apt: name=tightvncserver update_cache=yes
+      sudo: yes
+    - name: Copy VNC startup script
+      copy: src=scripts/vncboot dest=/etc/init.d/vncboot owner=root group=root mode=755
+      sudo: yes
+    - name: Add VNC to boot sequencing
+      service: name=vncboot enabled=yes
+      sudo: yes
+    - name: Ensure .vnc directory exists for pi
+      file: path=/home/pi/.vnc state=directory
+    - name: Copy VNC password file for pi
+      copy: src=scripts/passwd dest=/home/pi/.vnc/passwd owner=pi group=pi mode=600
+
+    - name: Get gpio7
+      get_url: url=http://bit.ly/1wxrqdp dest=/home/pi/isgh7.sh mode=555
+    - name: Ensure Desktop exists
+      file: path=/home/pi/Desktop state=directory
+    - name: Install gpio7
+      command: /home/pi/isgh7.sh creates=/home/pi/blink11.py
+      sudo: yes
